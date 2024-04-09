@@ -2,7 +2,9 @@ import tkinter as tk
 from tkinter import scrolledtext
 import subprocess
 import os
+import glob
 
+script_directory = os.path.dirname(os.path.abspath(__file__))
 
 root = tk.Tk()
 directory = os.getcwd()
@@ -31,7 +33,7 @@ def delete_history_duplicates():
 
 
 def save_history():
-    with open("history.txt", "w") as file:
+    with open(f"{os.path.join(script_directory, 'config/history.txt')}", "w") as file:
         for command in command_history:
             file.write(command + "\n")
         delete_history_duplicates()
@@ -39,7 +41,7 @@ def save_history():
 
 def load_history():
     if os.path.exists("history.txt"):
-        with open("history.txt", "r") as file:
+        with open(f"{os.path.join(script_directory, 'config/history.txt')}", "r") as file:
             for line in file:
                 command_history.append(line.strip())
             delete_history_duplicates()
@@ -49,7 +51,7 @@ load_history()
 
 output_text = scrolledtext.ScrolledText(root)
 output_text.pack(fill=tk.BOTH, expand=True)
-output_text.configure(bg="black", fg="white")
+output_text.configure(bg="black", fg="white", insertbackground="white")
 
 output_text.insert(
     tk.END,
@@ -62,14 +64,14 @@ custom_commands = {}
 
 def load_custom_commands():
     if os.path.exists("custom_commands.txt"):
-        with open("custom_commands.txt", "r") as file:
+        with open(f"{os.path.join(script_directory, 'config/custom_commands.txt')}", "r") as file:
             for line in file:
                 command, subprocess_command = line.strip().split(":", 1)
                 custom_commands[command] = subprocess_command
 
 
 def save_custom_commands():
-    with open("custom_commands.txt", "w") as file:
+    with open(f"{os.path.join(script_directory, 'config/custom_commands.txt')}", "w") as file:
         for command, subprocess_command in custom_commands.items():
             file.write(f"{command}:{subprocess_command}\n")
 
@@ -86,7 +88,7 @@ def execute_command(event=None):
     if command.lower() == "exit":
         root.destroy()
     if command.lower() == "clear history":
-        with open("history.txt", "w") as f:
+        with open(f"{os.path.join(script_directory, 'config/history.txt')}", "w") as f:
             f.write("")
         output_text.insert(tk.END, "\nHistory Cleared Boss!\n", "green")
         return
@@ -95,14 +97,17 @@ def execute_command(event=None):
         try:
             if new_dir == "..":
                 directory = os.path.dirname(directory)
+                root.title(f"Eclypse Terminal ({directory})")
             elif new_dir == "~" or new_dir == "~/":
                 directory = os.path.expanduser("~")
+                root.title(f"Eclypse Terminal ({directory})")
             else:
                 directory = os.path.join(directory, new_dir)
             os.chdir(directory)
             output_text.insert(
                 tk.END, f"\nChanged directory to '{directory}'.\n", "green"
             )
+            root.title(f"Eclypse Terminal ({directory})")
         except Exception as e:
             output_text.tag_config("red", foreground="red")
             output_text.insert(
@@ -112,6 +117,41 @@ def execute_command(event=None):
             )
 
         return
+
+    if command.startswith("ls"):
+        try:
+            _, args = command.split(" ", 1)
+        except ValueError:
+            args = "*"
+
+        try:
+            if args.startswith(".."):
+                path = os.path.join(directory, "..")
+                args = args[2:].lstrip()
+            elif args.startswith("."):
+                path = directory
+                args = args[1:].lstrip()
+            else:
+                path = directory
+
+            if args:
+                files = glob.glob(os.path.join(path, args))
+            else:
+                files = os.listdir(path)
+
+            output_text.insert(tk.END, "\n" + "\n".join(files) + "\n", "green")
+        except Exception as e:
+            output_text.tag_config("red", foreground="red")
+            output_text.insert(
+                tk.END,
+                "\n"
+                + "ERROR: "
+                + str(e)
+                + " (You weren't meant to do that! - Eclypse Team)\n",
+                "red",
+            )
+        return
+
     if command.startswith("addcmd "):
         _, custom_command, subprocess_command = command.split(" ", 2)
         custom_commands[custom_command] = subprocess_command
@@ -180,7 +220,7 @@ def recall_next_command(event):
         return "break"
     history_position = min(len(command_history) - 1, history_position + 1)
     output_text.delete("end-2c linestart", "end-1c")
-    output_text.insert(tk.END, "\n" + command_history[history_position])
+    output_text.insert(tk.END, command_history[history_position])  # Removed "\n"
     output_text.see(tk.END)
     return "break"
 
@@ -207,7 +247,7 @@ output_text.bind("<Up>", recall_previous_command)
 output_text.bind("<Down>", recall_next_command)
 output_text.bind("<Tab>", autocomplete_command)
 output_text.bind("<Control-l>", lambda e: output_text.delete(1.0, tk.END))
-output_text.bind("<Command-l>", lambda e: output_text.delete(1.0, tk.END))
+# output_text.bind("<Command-l>", lambda e: output_text.delete(1.0, tk.END))
 output_text.focus()
 
 output_text.tag_config("yellow", foreground="yellow")

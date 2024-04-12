@@ -1,4 +1,6 @@
 build/
 dist/
 *.spec
-config/
+history.txt
+.vscode/
+__pycache__/

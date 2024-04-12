@@ -11,8 +11,8 @@ directory = os.getcwd()
 root.title(f"Eclypse Terminal ({directory})")
 root.resizable(True, True)
 
-window_width = 800
-window_height = 600
+window_width = 1000
+window_height = 800
 
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
@@ -33,15 +33,15 @@ def delete_history_duplicates():
 
 
 def save_history():
-    with open(f"{os.path.join(script_directory, 'config/history.txt')}", "w") as file:
+    with open(os.path.join(os.getcwd(), "history.txt"), "w") as file:
         for command in command_history:
             file.write(command + "\n")
         delete_history_duplicates()
 
 
 def load_history():
-    if os.path.exists("history.txt"):
-        with open(f"{os.path.join(script_directory, 'config/history.txt')}", "r") as file:
+    if os.path.exists(os.path.join(os.getcwd(), "history.txt")):
+        with open(os.path.join(os.getcwd(), "history.txt"), "r") as file:
             for line in file:
                 command_history.append(line.strip())
             delete_history_duplicates()
@@ -60,18 +60,21 @@ output_text.insert(
 )
 
 custom_commands = {}
+full_custom_command = []
 
 
 def load_custom_commands():
-    if os.path.exists("custom_commands.txt"):
-        with open(f"{os.path.join(script_directory, 'config/custom_commands.txt')}", "r") as file:
+    if os.path.exists(os.path.join(os.getcwd(), "custom_commands.txt")):
+        with open(os.path.join(os.getcwd(), "custom_commands.txt"), "r") as file:
+            full_custom_command.clear()
             for line in file:
                 command, subprocess_command = line.strip().split(":", 1)
                 custom_commands[command] = subprocess_command
+                full_custom_command.append(line)
 
 
 def save_custom_commands():
-    with open(f"{os.path.join(script_directory, 'config/custom_commands.txt')}", "w") as file:
+    with open(os.path.join(os.getcwd(), "custom_commands.txt"), "w") as file:
         for command, subprocess_command in custom_commands.items():
             file.write(f"{command}:{subprocess_command}\n")
 
@@ -82,15 +85,17 @@ def execute_command(event=None):
     global directory
 
     command = output_text.get("end-2c linestart", "end-1c")
+
     if command.strip() == "":
         output_text.insert(tk.END, "\n")
         return
     if command.lower() == "exit":
         root.destroy()
     if command.lower() == "clear history":
-        with open(f"{os.path.join(script_directory, 'config/history.txt')}", "w") as f:
-            f.write("")
+        os.remove(os.path.join(script_directory, 'history.txt'))
         output_text.insert(tk.END, "\nHistory Cleared Boss!\n", "green")
+        command_history.clear()
+        open(os.path.join(os.getcwd(), "history.txt", "w")).close()
         return
     if command.startswith("cd "):
         _, new_dir = command.split(" ", 1)
@@ -156,7 +161,13 @@ def execute_command(event=None):
         _, custom_command, subprocess_command = command.split(" ", 2)
         custom_commands[custom_command] = subprocess_command
         save_custom_commands()
+        load_custom_commands()
         output_text.insert(tk.END, f"\nCustom command '{custom_command}' added.\n")
+        return
+    if command.lower() == "cmds":
+        output_text.insert(tk.END, "\n")
+        for i in full_custom_command:
+            output_text.insert(tk.END, i, "green")
         return
     if command.split(" ")[0] in custom_commands:
         custom_command, *args = command.split(" ")
